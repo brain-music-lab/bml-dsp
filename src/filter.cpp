@@ -4,19 +4,7 @@ namespace BML
 {
     namespace Filter
     {
-        double findMaxBandwidth(double fs, double fc)
-        {
-            return fc / fs;
-        }
-
-        double findMinBandwidth(size_t inputSize)
-        {
-            if (inputSize % 2 == 0)
-                inputSize -= 1;
-
-            double N = static_cast<double>(inputSize);
-            return 4.7 / N;
-        }
+        double findMaxBandwidth(double fc) { return 2.0 * fc; }
         
         std::vector<double> createLowPassFilter(double samplerate, double cutoffFreq, double transitionBand, Window window)
         {

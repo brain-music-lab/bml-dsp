@@ -8,6 +8,12 @@ namespace BML
 {
     namespace FileTools
     {
+        /**
+        Write a vector to a csv file.
+
+        @param vec The vector to write to csv.
+        @param filename The name of the csv file. You must include the ".csv" extension.
+        */
         template <typename T>
         inline void writeVecToCsv(const std::vector<T>& vec, std::string filename)
         {
