@@ -1,0 +1,3 @@
+[submodule "vendor/liblsl"]
+	path = vendor/liblsl
+	url = git@github.com:sccn/liblsl.git
