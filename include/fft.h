@@ -1,3 +1,6 @@
+#ifndef _BML_DSP_FFT_H_
+#define _BML_DSP_FFT_H_
+
 #include <vector>
 #include <complex>
 #include <fftw3.h>
@@ -27,3 +30,5 @@ namespace BML
         std::vector<double> ifft(std::vector<std::complex<double>> input);
     }
 }
+
+#endif  // _BML_DSP_FFT_H_

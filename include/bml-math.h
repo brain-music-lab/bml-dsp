@@ -52,9 +52,8 @@ namespace BML
         */
         inline std::vector<double> arange(double start, double end, double step)
         {
-            std::vector<double> out;
-
-            while (start < end)
+            std::vector<double> out;  // Allocate memory
+            while (start < end)       // Construct the vector
             {
                 out.push_back(start);
                 start += step;

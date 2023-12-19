@@ -2,3 +2,6 @@ python/*
 *.vscode
 build
 bld
+todo.md
+.idea
+test/truth

@@ -6,6 +6,7 @@ namespace BML
     {
         double findMaxBandwidth(double fc) { return 2.0 * fc; }
         
+        
         std::vector<double> createLowPassFilter(double samplerate, double cutoffFreq, double transitionBand, Window window)
         {
             // Calculate transition band for sample rate of 1 Hz

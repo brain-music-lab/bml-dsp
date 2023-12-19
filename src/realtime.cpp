@@ -3,23 +3,28 @@
 #include "filter.h"
 #include "bml-math.h"
 
+#include <iostream>
+
 namespace BML
 {
     namespace RealTime
     {
         RationalFactor findRationalFactor(size_t oldFs, size_t newFs)
         {
+            // Find least common multiple
             size_t lcm = BML::Math::findLcm(oldFs, newFs);
+
+            // Assertions
             assert (lcm % oldFs == 0);
             assert (lcm % newFs == 0);
 
             return { lcm/oldFs, lcm/newFs};
         }
 
-        Convolution::Convolution(const std::vector<double>& lpf, Method method) :
-                m_lpf(lpf),
-                m_filterSize(lpf.size()),
-                m_overlap(std::vector<double>(m_filterSize - 1, 0.0)),
+        Convolution::Convolution(const std::vector<double>& signal, Method method) :
+                m_signal(signal),
+                m_signalSize(m_signal.size()),
+                m_overlap(std::vector<double>(m_signalSize - 1, 0.0)),
                 m_convMethod(method)
             {}
 
@@ -44,7 +49,7 @@ namespace BML
             // Allocate memory
             std::vector<double> out(block.size(), 0.0);  // Vector ultimately returned from function
             size_t block_size = block.size();  // Save block size
-            std::vector<double> tempFilter = m_lpf;  // Create temporary filter
+            std::vector<double> tempFilter = m_signal;  // Create temporary filter
 
             // Zero pad the filter
             for (size_t i = 0; i < block_size - 1; i++)
@@ -52,7 +57,7 @@ namespace BML
 
             // zero pad the block
             std::vector<double> zeroPaddedBlock = block;
-            for (size_t i = 0; i < m_filterSize - 1; i++)
+            for (size_t i = 0; i < m_signalSize - 1; i++)
                 zeroPaddedBlock.push_back(0.0);
 
             // Perform circular convolution
@@ -65,18 +70,18 @@ namespace BML
                 multiplication.emplace_back(blockFft[i] * filterFft[i]);
             auto circConv = FFT::ifft(multiplication);
 
-            // Store the entire circConv vector in out except for the last m_filterSize - 1 elements
-            // while i < m_filterSize, add the overlapped values from last iteration
+            // Store the entire circConv vector in out except for the last m_signalSize - 1 elements
+            // while i < m_signalSize, add the overlapped values from last iteration
             // The first iteration overlap values are 0
             for (size_t i = 0; i < out.size(); i++)
             {
                 out[i] = circConv[i];
-                if (i < m_filterSize - 1)
+                if (i < m_signalSize - 1)
                     out[i] += m_overlap[i];
             }
 
-            // Store the last m_filterSize - 1 elements of circConv in m_overlap
-            auto start = circConv.size() - (m_filterSize - 1);
+            // Store the last m_signalSize - 1 elements of circConv in m_overlap
+            auto start = circConv.size() - (m_signalSize - 1);
             for (size_t i = start; i < circConv.size(); i++)
                 m_overlap[i - start] = circConv[i];
                 
@@ -86,6 +91,7 @@ namespace BML
 
         std::vector<double> Convolution::overlapSave(const std::vector<double>& block)
         {
+            std::cout << "Overlap-Save is not yet implemented. Using the Overlap-Add method...";
             return overlapAdd(block);
         }
 
@@ -96,27 +102,37 @@ namespace BML
             m_convolutionUp(),
             m_convolutionDown()
         {
-            // Create a low-pass filter
-            double bw = Filter::findMaxBandwidth(newFs, oldFs / 2.0);
-            auto lpfUp = Filter::createLowPassFilter(newFs, oldFs / 2.0, bw);
+            // If necessary, create a convolution object for upsampling
+            // If we are upsampling at all, we need the convolution object for upsampling
+            if (m_rationalFactor.upsample > 1)
+            {
+                // Create a low-pass filter
+                double bw = Filter::findMaxBandwidth(oldFs);
+                auto lpfUp = Filter::createLowPassFilter(newFs, oldFs / 2.0, bw);
 
-            // Scale filter
-            std::vector<double> filter = lpfUp;
-            for (size_t i = 0; i < filter.size(); i++)
-                filter[i] *= m_rationalFactor.upsample;
+                // Scale filter
+                std::vector<double> filter = lpfUp;
+                for (size_t i = 0; i < filter.size(); i++)
+                    filter[i] *= m_rationalFactor.upsample;
 
-            // Create the convolution object for upsampling
-            m_convolutionUp = std::make_unique<Convolution>(filter);
+                // Create the convolution object for upsampling
+                m_convolutionUp = std::make_unique<Convolution>(filter);
+            }
+            else
+                m_convolutionUp = nullptr;  // TODO: Is this how we should set a smartpointer to null?
+
 
             // If necessary, create a convolution object for downsampling
-            if (m_rationalFactor.upsample >= m_rationalFactor.downsample)
-                m_convolutionDown = nullptr;
-            else
+            // We only need the downwards convolution object if we are resampling to a lower frequency.
+            if (m_rationalFactor.upsample < m_rationalFactor.downsample)
             {
-                double bwDown = Filter::findMaxBandwidth(oldFs * m_rationalFactor.upsample, newFs / 2.0);
+                double bwDown = Filter::findMaxBandwidth(newFs);
                 auto lpfDown = Filter::createLowPassFilter(oldFs * m_rationalFactor.upsample, newFs / 2.0, bwDown);
                 m_convolutionDown = std::make_unique<Convolution>(lpfDown);
             }
+            else
+                m_convolutionDown = nullptr;  // TODO: Is this how we should set a smartpointer to null?
+
         }
 
         std::vector<double> Resample::resample(const std::vector<double>& block)
@@ -127,7 +143,7 @@ namespace BML
 
             // Upsample if necessary
             std::vector<double> upsampledBlock;
-            if (m_rationalFactor.upsample > 1)
+            if (m_rationalFactor.upsample > 1) // If value is 1 no need to upsample
             {
                 // Create zero-padded version of signal
                 size_t zeroPadLen = block.size() * (size_t)m_rationalFactor.upsample;
@@ -144,11 +160,15 @@ namespace BML
             else
                 upsampledBlock = block;
 
-            std::vector<double> out;
+            std::vector<double> out;  // Allocate memory for output vector
+    
             // Downsample if necessary
-            if (m_rationalFactor.downsample > 1)
+            if (m_rationalFactor.downsample > 1)  // If value is 1 no need to downsample
             {
-                std::vector<double> filteredBlock;
+                std::vector<double> filteredBlock;  // Allocate memory
+
+                // If we upsample more than we downsample, we don't need to convolve again. 
+                // Therefore, there was no need to create the m_convolutionDown instance.
                 if (m_convolutionDown != nullptr)
                     filteredBlock = m_convolutionDown->convolve(upsampledBlock);
 
@@ -159,12 +179,12 @@ namespace BML
             else
                 out = upsampledBlock;
 
-            // Return resampled signal
             return out;
         }
 
         std::vector<double> Resample::zeroPad(const std::vector<double>& vector_to_pad, int num_zeros)
         {
+            // Allocate memory and right pad.
             std::vector<double> out(vector_to_pad.begin(), vector_to_pad.end());
             for (int i = 0; i < num_zeros; i++)
                 out.push_back(0.0);
