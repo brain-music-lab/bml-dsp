@@ -10,6 +10,7 @@ add_library(bml-dsp
     ${PROJECT_SOURCE_DIR}/src/realtime.cpp
     ${PROJECT_SOURCE_DIR}/src/lsl-comm.cpp)
 
+target_include_directories(bml-dsp PRIVATE ${PROJECT_SOURCE_DIR}/include/bml-dsp)
 target_include_directories(bml-dsp PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 if (UNIX)
