@@ -1,6 +1,7 @@
 #ifndef _BML_DSP_FILTER_H_
 #define _BML_DSP_FILTER_H_
 
+#define _USE_MATH_DEFINES
 #include <cmath>
 #include <vector>
 #include <algorithm>
